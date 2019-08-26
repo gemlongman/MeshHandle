@@ -1,4 +1,5 @@
 #include "HoleMesh.h"
+#include "MatrixHandle.h"
 #include <vector>
 #include <queue>
 
@@ -20,6 +21,7 @@ int SingleHoleMesh::InitMesh(OMTriMesh & OriginMesh, int neighborRings, double d
 		VertBoundaryHolemeshHs.push_back(newV);
 		VertNew2OriId[newV.idx()] = vit->idx();
 		VertOri2NewId[vit->idx()] = newV.idx();
+		holeMesh.data(newV).type = 0;//Boundary
 		holeMesh.property(topDis, newV) = 0;
 		holeMesh.property(meshDis, newV) = 0;
 		neighborVertices.push(*vit);
@@ -52,6 +54,7 @@ int SingleHoleMesh::InitMesh(OMTriMesh & OriginMesh, int neighborRings, double d
 					newV = holeMesh.add_vertex(OriginMesh.point(*nVit));
 					VertNew2OriId[newV.idx()] = nVit->idx();
 					VertOri2NewId[nVit->idx()] = newV.idx();
+					holeMesh.data(newV).type = neibor + 1;//out of boundary
 					holeMesh.property(topDis, newV) = neibor + 1;
 					holeMesh.property(meshDis, newV) = tempDis + distance;
 					neighborVertices.push(*nVit);
@@ -67,6 +70,7 @@ int SingleHoleMesh::InitMesh(OMTriMesh & OriginMesh, int neighborRings, double d
 				if (neibor + 1 < holeMesh.property(topDis, holeMesh.vertex_handle(VertOri2NewId[nVit->idx()]))) {
 					//update new point
 					holeMesh.property(topDis, holeMesh.vertex_handle(VertOri2NewId[nVit->idx()])) = neibor + 1;
+					holeMesh.data(holeMesh.vertex_handle(VertOri2NewId[nVit->idx()])).type = neibor + 1;//out of boundary
 				}
 			}
 
@@ -85,6 +89,7 @@ int SingleHoleMesh::InitMesh(OMTriMesh & OriginMesh, int neighborRings, double d
 						newV = holeMesh.add_vertex(OriginMesh.point(*nFVit));
 						VertNew2OriId[newV.idx()] = nFVit->idx();
 						VertOri2NewId[nFVit->idx()] = newV.idx();
+						holeMesh.data(newV).type = neibor + 1;//out of boundary
 						holeMesh.property(topDis, newV) = neibor + 1;
 						holeMesh.property(meshDis, newV) = tempDis + distance;
 						//neighborVertices.push(*nFVit);
@@ -104,7 +109,6 @@ int SingleHoleMesh::InitMesh(OMTriMesh & OriginMesh, int neighborRings, double d
 			}
 		}
 	}
-	
 
 #ifdef gydebugn
 	string file = "G:\\gyGit\\data\\hole\\InitMesh"+to_string(AvergEdgeLen)+".obj";
@@ -128,7 +132,7 @@ int SingleHoleMesh::Mergeback(OMTriMesh & OriginMesh, bool updateOldVertecis)
 	//vertece
 	for  (OpenMesh::VertexHandle var : holeMesh.vertices() )
 	{
-		if ( VertNew2OriId.find(var.idx()) == VertNew2OriId.end()  ) {
+		if ( VertNew2OriId.find(var.idx()) == VertNew2OriId.end()  ) {//is a added new point 
 			holeP = holeMesh.point(var);
 			originV = OriginMesh.add_vertex(holeP);
 			//add map
@@ -144,7 +148,7 @@ int SingleHoleMesh::Mergeback(OMTriMesh & OriginMesh, bool updateOldVertecis)
 			//do nothing
 		}
 	}
-#ifdef gydebug
+#ifdef gydebugaddv
 	string file = "G:\\gyGit\\data\\hole\\addV" + to_string(AvergEdgeLen) + ".obj";
 	OpenMesh::IO::write_mesh(OriginMesh, file);
 	std::cout << "WriteMeshFile done" << file << std::endl;
@@ -154,7 +158,7 @@ int SingleHoleMesh::Mergeback(OMTriMesh & OriginMesh, bool updateOldVertecis)
 	OpenMesh::FaceHandle originF;
 	for (OpenMesh::FaceHandle fa : holeMesh.faces())
 	{
-		if (FacesNew2OriId.find(fa.idx()) == FacesNew2OriId.end()) {
+		if (FacesNew2OriId.find(fa.idx()) == FacesNew2OriId.end()) {//is a added new face 
 			int i = 0;
 			for (auto v = holeMesh.fv_cwbegin(fa); v != holeMesh.fv_cwend(fa); v++,i++)
 			{
@@ -179,7 +183,7 @@ int SingleHoleMesh::Mergeback(OMTriMesh & OriginMesh, bool updateOldVertecis)
 			//do nothing
 		}
 	}
-#ifdef gydebug
+#ifdef gydebugaddf
 	file = "G:\\gyGit\\data\\hole\\addF" + to_string(AvergEdgeLen) + ".obj";
 	OpenMesh::IO::write_mesh(OriginMesh, file);
 	std::cout << "WriteMeshFile done" << file << std::endl;
@@ -195,13 +199,13 @@ int SingleHoleMesh::FillHole(int type)
 		FillHoleCenterPoint();
 	}
 	else if (1==type) {
+		FillHoleCenterPoint();// edge angle
 	}
 	else {
-		FillHoleCenterPoint();
+		FillHoleCenterPoint();// area
 	}
 	
-
-#ifdef gydebug
+#ifdef gydebugFillHole
 	string file = "G:\\gyGit\\data\\hole\\FillHole" + to_string(AvergEdgeLen) + ".obj";
 	OpenMesh::IO::write_mesh(holeMesh, file);
 	std::cout << "WriteMeshFile done" << file << std::endl;
@@ -214,8 +218,8 @@ int SingleHoleMesh::FillHoleCenterPoint()
 	//it is sure hole.VertHssize >= 3
 	OpenMesh::VertexHandle CenterV = holeMesh.add_vertex(OpenMesh::Vec3f(0,0,0));//CenterPoint has been moved
 	holeMesh.property(topDis, CenterV) = -1;
+	holeMesh.data(CenterV).type = -1;//inner of boundary
 
-	//holeMesh.data(CenterV).type = -1;//new point
 	auto startVertex = VertBoundaryHolemeshHs.begin();
 	auto vIt = VertBoundaryHolemeshHs.begin();
 	auto vItNext = vIt + 1;
@@ -228,21 +232,30 @@ int SingleHoleMesh::FillHoleCenterPoint()
 
 }
 
-int SingleHoleMesh::SmoothMesh(bool changeOrigin)
+int SingleHoleMesh::SmoothMesh(int fixPointType)
 {
-	//for each p
-	//round by surrond
+#ifdef gydebug
+	//holeMesh.set_point(holeMesh.vertex_handle(9), {1,1,1});
+	string file = "G:\\gyGit\\data\\hole\\SmoothMeshBefore.obj";
+	OpenMesh::IO::write_mesh(holeMesh, file);
+	std::cout << "WriteMeshFile done" << file << std::endl;
+#endif 
+	MatrixHandle matHandle(holeMesh);
+	matHandle.SmoothMesh(fixPointType);
 
-	//add to matrix
-
-	//set value to point 
+#ifdef gydebug
+	file = "G:\\gyGit\\data\\hole\\SmoothMeshAfter.obj";
+	OpenMesh::IO::write_mesh(holeMesh, file);
+	std::cout << "WriteMeshFile done" << file << std::endl;
+#endif 
 
 	return 0;
 }
 
+//foreach p - CenterPoint
 int SingleHoleMesh::MoveToCenter(OpenMesh::Vec3f center)
 {
-	//foreach p - CenterPoint
+
 	for (auto v :holeMesh.vertices() ) {
 		holeMesh.set_point(v, holeMesh.point(v) - center );
 	}
@@ -312,12 +325,11 @@ int HoleMeshHandle::FindHoles()
 	return 0;
 }
 
-
 int HoleMeshHandle::ExtractHolesRegin(int neighborRings, double distanceLimited)
 {
 	//maybe do it in find
 	FindHoles();
-	//cout << "find holes:"<<holes.size() << endl;
+	//debug cout << "find holes:"<<holes.size() << endl;
 	
 	double farPointDis;
 	//parallel
@@ -333,6 +345,15 @@ int HoleMeshHandle::FillHoles(int method)
 	//parallel
 	for (vector<SingleHoleMesh>::iterator holeIt = holes.begin(); holeIt != holes.end(); holeIt++) {
 		holeIt->FillHole(method);
+	}
+	return 0;
+}
+
+int HoleMeshHandle::SmoothHoles(int method)
+{
+	//parallel
+	for (vector<SingleHoleMesh>::iterator holeIt = holes.begin(); holeIt != holes.end(); holeIt++) {
+		holeIt->SmoothMesh(method);
 	}
 	return 0;
 }

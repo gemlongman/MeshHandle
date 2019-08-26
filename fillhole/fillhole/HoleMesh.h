@@ -1,4 +1,5 @@
 #include "InheritOMesh.h"
+//#include "MatrixHandle.h"
 
 class SingleHoleMesh : public SingleHole {
 public:
@@ -21,8 +22,9 @@ public:
 	int FillHole(int type);
 	int FillHoleCenterPoint();//0
 	//int angle
+	//int di angle
 
-	int SmoothMesh(bool changeOrigin);
+	int SmoothMesh(int fixPointType);
 private:
 	int MoveToCenter(OpenMesh::Vec3f center);//move all point to a coordinate origin for calculate  accuracy
 };
@@ -33,6 +35,7 @@ public:
 	
 	int ExtractHolesRegin(int neighborRings,double distanceLimited = 3.0);
 	int FillHoles(int method);
+	int SmoothHoles(int method);
 	int MergerBack(bool updateOldVertecis = false);
 protected:
 private:

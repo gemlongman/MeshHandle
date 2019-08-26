@@ -9,7 +9,7 @@
 #include <OpenMesh/Core/Mesh/Handles.hh>
 #include <OpenMesh/Core/Mesh/ArrayKernel.hh>
 
-#include "MatrixHandle.h"
+
 
 struct MyTraits :public OpenMesh::DefaultTraits {
 public:
